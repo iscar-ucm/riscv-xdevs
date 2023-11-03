@@ -1,22 +1,23 @@
 [package]
-name = "{{project-name}}"
-version = "0.0.0"
-authors = ["{{authors}}"]
-edition = "2018"
+name = "riscv-xdevs"
+version = "0.1.0"
+authors = ["Román Cárdenas"]
+edition = "2021"
 license = "ISC"
 readme = "README.md"
 rust-version = "1.59"
 
 [dependencies]
 embedded-hal = "0.2.7"
-hifive1 = { version = "0.10.0", features = ["board-hifive1-revb"] }
+hifive1 = { git = "https://github.com/greenlsi/hifive1.git", features = ["board-redv", "v-extern"] }
 panic-halt = "0.2.0"
 riscv = "0.10.0"
 riscv-rt = "0.11.0"
+xdevs = { git = "https://github.com/iscar-ucm/xdevs_no_std.rs.git", branch = "main" }
 
 # this lets you use `cargo fix`!
 [[bin]]
-name = "{{project-name}}"
+name = "riscv-xdevs"
 test = false
 bench = false
 
