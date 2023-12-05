@@ -1,5 +1,11 @@
 #![no_std]
 
+use hifive1::hal::gpio::*;
+
+pub type RedLed = gpio0::Pin0<Output<Regular<NoInvert>>>;
+pub type BlueLed = gpio0::Pin1<Output<Regular<NoInvert>>>;
+pub type GreenLed = gpio0::Pin2<Output<Regular<NoInvert>>>;
+
 #[no_mangle]
 fn fmin(a: f64, b: f64) -> f64 {
     if a < b {
@@ -78,20 +84,23 @@ pub mod generator {
 }
 
 pub mod processor {
-    use super::{sprint, sprintln};
+    use super::{sprint, sprintln, RedLed};
+    use hifive1::hal::prelude::*;
 
     pub struct ProcessorState {
         sigma: f64,
         time: f64,
         job: Option<usize>,
+        redled: RedLed,
     }
 
     impl ProcessorState {
-        pub fn new(time: f64) -> Self {
+        pub fn new(time: f64, redled: RedLed) -> Self {
             Self {
                 sigma: 0.0,
                 time,
                 job: None,
+                redled,
             }
         }
     }
@@ -113,6 +122,7 @@ pub mod processor {
             if let Some(job) = state.job {
                 sprintln!("[P] processed job {}", job);
                 state.job = None;
+                state.redled.set_low().unwrap();
             }
         }
 
@@ -134,6 +144,7 @@ pub mod processor {
                     sprintln!(" (idle)");
                     state.job = Some(job);
                     state.sigma = state.time;
+                    state.redled.set_high().unwrap();
                 } else {
                     sprintln!(" (busy)");
                 }

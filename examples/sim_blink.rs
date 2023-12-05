@@ -66,15 +66,13 @@ fn main() -> ! {
         clocks,
     );
 
-    let redled = gpio.pin0.into_output();
-
     let period = 1.;
     let proc_time = 1.1;
     let obs_time = 10.;
-    let max_jitter_us = Some(10_000);
+    let max_jitter_us = Some(1800);
 
     let generator = generator::Generator::new(generator::GeneratorState::new(period));
-    let processor = processor::Processor::new(processor::ProcessorState::new(proc_time, redled));
+    let processor = processor::Processor::new(processor::ProcessorState::new(proc_time));
     let transducer = transducer::Transducer::new(transducer::TransducerState::new(obs_time));
 
     let ef = EF::new(generator, transducer);

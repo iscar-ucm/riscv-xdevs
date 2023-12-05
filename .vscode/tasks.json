@@ -2,7 +2,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "main",
+            "label": "build main",
             "command": "cargo",
             "args": [
                 "build"
@@ -15,5 +15,29 @@
                 "isDefault": true
             }
         },
-    ]
+        {
+            "label": "cortex-debug: build example",
+            "command": "cargo",
+            "args": [
+                "build",
+                "--example",
+                "${input:cortex-debug-example}"
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+    ],
+    "inputs": [
+		{
+			"id": "cortex-debug-example",
+			"type": "command",
+			"command": "extension.commandvariable.rememberPick",
+      		"args": { "key": "example" }
+		},
+	]
 }

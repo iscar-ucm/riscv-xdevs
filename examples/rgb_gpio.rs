@@ -25,20 +25,34 @@ fn main() -> ! {
     // Configure clocks
     let clocks = hifive1::clock::configure(p.PRCI, p.AONCLK, 320.mhz().into());
 
-    // GPIO PIN1 -> DIG9 physical on board (both hifive1 and hifive1-revB)
-    let mut eled = pin!(pins, dig9).into_output();
-
-    // get the local interrupts struct
-    let clint = dr.core_peripherals.clint;
+    let mut redled = pins.pin0.into_output();
+    let mut blueled = pins.pin1.into_output();
+    let mut greenled = pins.pin2.into_output();
 
     // get the sleep struct
-    let mut sleep = Sleep::new(clint.mtimecmp, clocks);
+    let mut delay = hifive1::hal::delay::Delay::new();
 
     const PERIOD: u32 = 1000; // 1s
+
+    let mut count = 0;
     loop {
-        eled.toggle().unwrap();
+        // make leds toggle depending on count
+        if count % 3 == 0 {
+            redled.set_high().unwrap();
+            blueled.set_low().unwrap();
+            greenled.set_low().unwrap();
+        } else if count % 3 == 1 {
+            redled.set_low().unwrap();
+            blueled.set_low().unwrap();
+            greenled.set_high().unwrap();
+        } else {
+            redled.set_low().unwrap();
+            blueled.set_high().unwrap();
+            greenled.set_low().unwrap();
+        }
+        count += 1;
 
         // sleep for 1s
-        sleep.delay_ms(PERIOD);
+        delay.delay_ms(PERIOD);
     }
 }

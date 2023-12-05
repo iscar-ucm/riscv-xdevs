@@ -15,6 +15,9 @@ riscv = "0.10.0"
 riscv-rt = "0.11.0"
 xdevs = { git = "https://github.com/iscar-ucm/xdevs_no_std.rs.git", branch = "main" }
 
+[features]
+qemu = []
+
 # this lets you use `cargo fix`!
 [[bin]]
 name = "riscv-xdevs"

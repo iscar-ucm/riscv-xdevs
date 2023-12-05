@@ -2,26 +2,52 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Hifive1 (Debug)",
+            "name": "Debug main",
             // Substitute with the board number
             "device": "FE310", 
             "type": "cortex-debug",
-            "preLaunchTask": "main",
+            "preLaunchTask": "build main",
             // Defined in tasks.json
             "request": "launch",
             "servertype": "jlink",
-            // JLink server path
+            // JLink server path (if not in PATH)
             // "serverpath": "",
-            // GDB debug output
-            // "showDevDebugOutput": "raw",
             "cwd": "${workspaceRoot}",
-            // Executable to launch
-            "executable": "${workspaceRoot}/target/riscv32imc-unknown-none-elf/debug/riscv-xdevs",
+            "executable": "${workspaceRoot}/target/riscv32imc-unknown-none-elf/debug/${workspaceRootFolderName}",
             "interface": "jtag",
             // "svdFile": "${workspaceRoot}/hifive.svd",
-            // Set this to point to sifive risc-v gdb path 
             "gdbPath": "riscv64-unknown-elf-gdb",
             "toolchainPrefix": "riscv64-unknown-elf",
         },
+        {
+            "name": "Debug example",
+            "device": "FE310", 
+            "type": "cortex-debug",
+            "preLaunchTask": "cortex-debug: build example",
+            "request": "launch",
+            "servertype": "jlink",
+            "cwd": "${workspaceRoot}",
+            "executable": "${workspaceRoot}/target/riscv32imc-unknown-none-elf/debug/examples/${input:example}",
+            "interface": "jtag",
+            // "svdFile": "${workspaceRoot}/hifive.svd",
+            "gdbPath": "riscv64-unknown-elf-gdb",
+            "toolchainPrefix": "riscv64-unknown-elf",
+        },
+    ],
+    "inputs": [
+		{
+            "id": "example",
+            "type": "command",
+            "command": "extension.commandvariable.pickStringRemember",
+            "args": {
+                "key": "example",
+                "description": "Select example:",
+                "default": "rgb_gpio",
+                "options": [
+                    "no_blink",
+                    "rgb_gpio",
+                ]
+            }
+		},
     ]
 }
