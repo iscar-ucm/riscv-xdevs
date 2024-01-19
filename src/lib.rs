@@ -6,28 +6,50 @@ pub type RedLed = gpio0::Pin0<Output<Regular<NoInvert>>>;
 pub type BlueLed = gpio0::Pin1<Output<Regular<NoInvert>>>;
 pub type GreenLed = gpio0::Pin2<Output<Regular<NoInvert>>>;
 
-#[no_mangle]
-fn fmin(a: f64, b: f64) -> f64 {
-    if a < b {
-        a
-    } else {
-        b
-    }
+#[macro_export]
+macro_rules! println {
+    ($($arg:tt)*) => {
+        #[cfg(feature = "qemu")]
+        semihosting::println!($($arg)*);
+        #[cfg(not(feature = "qemu"))]
+        hifive1::sprintln!($($arg)*);
+    };
 }
 
-#[no_mangle]
-fn fmax(a: f64, b: f64) -> f64 {
-    if a > b {
-        a
-    } else {
-        b
-    }
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => {
+        #[cfg(feature = "qemu")]
+        semihosting::print!($($arg)*);
+        #[cfg(not(feature = "qemu"))]
+        hifive1::sprint!($($arg)*);
+    };
 }
 
-use hifive1::{sprint, sprintln};
+#[inline]
+pub fn secf64_to_ticku64(t: f64) -> u64 {
+    t as u64 * hifive1::hal::e310x::CLINT::freq() as u64
+}
+
+#[inline]
+pub fn ticku64_to_secf64(t: u64) -> f64 {
+    t as f64 / hifive1::hal::e310x::CLINT::freq() as f64
+}
+
+#[inline]
+#[allow(unused_variables)]
+pub fn exit(code: i32) -> ! {
+    match () {
+        #[cfg(feature = "qemu")]
+        () => semihosting::process::exit(code),
+        #[cfg(not(feature = "qemu"))]
+        () => loop {
+            unsafe { riscv::asm::wfi() };
+        },
+    }
+}
 
 pub mod generator {
-    use super::sprintln;
 
     pub struct GeneratorState {
         sigma: f64,
@@ -63,7 +85,7 @@ pub mod generator {
         }
 
         fn lambda(state: &Self::State, output: &mut Self::Output) {
-            sprintln!("[G] sending job {}", state.count);
+            println!("[G] sending job {}", state.count);
             output.out_job.add_value(state.count).unwrap();
         }
 
@@ -74,7 +96,7 @@ pub mod generator {
         fn delta_ext(state: &mut Self::State, e: f64, x: &Self::Input) {
             state.sigma -= e;
             if let Some(&stop) = x.in_stop.get_values().last() {
-                sprintln!("[G] received stop: {}", stop);
+                println!("[G] received stop: {}", stop);
                 if stop {
                     state.sigma = f64::INFINITY;
                 }
@@ -84,7 +106,7 @@ pub mod generator {
 }
 
 pub mod processor {
-    use super::{sprint, sprintln, RedLed};
+    use super::RedLed;
     use hifive1::hal::prelude::*;
 
     pub struct ProcessorState {
@@ -117,10 +139,15 @@ pub mod processor {
     );
 
     impl xdevs::Atomic for Processor {
+        fn stop(state: &mut Self::State) {
+            // make sure the red led is off
+            state.redled.set_low().unwrap();
+        }
+
         fn delta_int(state: &mut Self::State) {
             state.sigma = f64::INFINITY;
             if let Some(job) = state.job {
-                sprintln!("[P] processed job {}", job);
+                println!("[P] processed job {}", job);
                 state.job = None;
                 state.redled.set_low().unwrap();
             }
@@ -139,14 +166,14 @@ pub mod processor {
         fn delta_ext(state: &mut Self::State, e: f64, x: &Self::Input) {
             state.sigma -= e;
             if let Some(&job) = x.in_job.get_values().last() {
-                sprint!("[P] received job {}", job);
+                print!("[P] received job {}", job);
                 if state.job.is_none() {
-                    sprintln!(" (idle)");
+                    println!(" (idle)");
                     state.job = Some(job);
                     state.sigma = state.time;
                     state.redled.set_high().unwrap();
                 } else {
-                    sprintln!(" (busy)");
+                    println!(" (busy)");
                 }
             }
         }
@@ -154,13 +181,12 @@ pub mod processor {
 }
 
 pub mod transducer {
-    use super::sprintln;
 
     pub struct TransducerState {
         sigma: f64,
         clock: f64,
-        n_generated: usize,
-        n_processed: usize,
+        n_gen: usize,
+        n_proc: usize,
     }
 
     impl TransducerState {
@@ -168,8 +194,8 @@ pub mod transducer {
             Self {
                 sigma: obs_time,
                 clock: 0.0,
-                n_generated: 0,
-                n_processed: 0,
+                n_gen: 0,
+                n_proc: 0,
             }
         }
     }
@@ -177,8 +203,8 @@ pub mod transducer {
     xdevs::component!(
         ident = Transducer,
         input = {
-            in_generator<usize, 1>,
-            in_processor<usize, 1>,
+            in_gen<usize, 2>,
+            in_proc<usize, 1>,
         },
         output = {
             out_stop<bool>
@@ -189,18 +215,17 @@ pub mod transducer {
     impl xdevs::Atomic for Transducer {
         fn delta_int(state: &mut Self::State) {
             state.clock += state.sigma;
-            let (acceptance, throughput) = if state.n_processed > 0 {
+            let (acceptance, throughput) = if state.n_proc > 0 {
                 (
-                    state.n_processed as f64 / state.n_generated as f64,
-                    state.n_processed as f64 / state.clock,
+                    state.n_proc as f64 / state.n_gen as f64,
+                    state.n_proc as f64 / state.clock,
                 )
             } else {
                 (0.0, 0.0)
             };
-            sprintln!(
+            println!(
                 "[T] acceptance: {:.2}, throughput: {:.2}",
-                acceptance,
-                throughput
+                acceptance, throughput
             );
             state.sigma = f64::INFINITY;
         }
@@ -216,11 +241,31 @@ pub mod transducer {
         fn delta_ext(state: &mut Self::State, e: f64, x: &Self::Input) {
             state.sigma -= e;
             state.clock += e;
-            state.n_generated += x.in_generator.get_values().len();
-            state.n_processed += x.in_processor.get_values().len();
+            state.n_gen += x.in_gen.get_values().len();
+            state.n_proc += x.in_proc.get_values().len();
         }
     }
 }
+
+xdevs::component!(
+    ident = PT,
+    input = {
+        in_job<usize, 1>,
+    },
+    output = {
+        out_stop<bool, 1>,
+    },
+    components = {
+        processor: processor::Processor,
+        transducer: transducer::Transducer,
+    },
+    couplings = {
+        in_job -> processor.in_job,
+        in_job -> transducer.in_gen,
+        processor.out_job -> transducer.in_proc,
+        transducer.out_stop -> out_stop,
+    }
+);
 
 xdevs::component!(
     ident = GPT,
@@ -231,8 +276,8 @@ xdevs::component!(
     },
     couplings = {
         generator.out_job -> processor.in_job,
-        processor.out_job -> transducer.in_processor,
-        generator.out_job -> transducer.in_generator,
+        processor.out_job -> transducer.in_proc,
+        generator.out_job -> transducer.in_gen,
         transducer.out_stop -> generator.in_stop,
     }
 );
@@ -250,8 +295,8 @@ xdevs::component!(
         transducer: transducer::Transducer,
     },
     couplings = {
-        in_processor -> transducer.in_processor,
-        generator.out_job -> transducer.in_generator,
+        in_processor -> transducer.in_proc,
+        generator.out_job -> transducer.in_gen,
         transducer.out_stop -> generator.in_stop,
         generator.out_job -> out_generator,
     }

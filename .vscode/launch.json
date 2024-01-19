@@ -2,36 +2,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug main",
-            // Substitute with the board number
-            "device": "FE310", 
-            "type": "cortex-debug",
-            "preLaunchTask": "build main",
-            // Defined in tasks.json
-            "request": "launch",
-            "servertype": "jlink",
-            // JLink server path (if not in PATH)
-            // "serverpath": "",
-            "cwd": "${workspaceRoot}",
-            "executable": "${workspaceRoot}/target/riscv32imc-unknown-none-elf/debug/${workspaceRootFolderName}",
-            "interface": "jtag",
-            // "svdFile": "${workspaceRoot}/hifive.svd",
-            "gdbPath": "riscv64-unknown-elf-gdb",
-            "toolchainPrefix": "riscv64-unknown-elf",
-        },
-        {
             "name": "Debug example",
-            "device": "FE310", 
             "type": "cortex-debug",
             "preLaunchTask": "cortex-debug: build example",
+            "device": "FE310", 
             "request": "launch",
             "servertype": "jlink",
             "cwd": "${workspaceRoot}",
             "executable": "${workspaceRoot}/target/riscv32imc-unknown-none-elf/debug/examples/${input:example}",
             "interface": "jtag",
-            // "svdFile": "${workspaceRoot}/hifive.svd",
+            "svdFile": "${workspaceRoot}/hifive.svd",
             "gdbPath": "riscv64-unknown-elf-gdb",
             "toolchainPrefix": "riscv64-unknown-elf",
+            "runToEntryPoint": "main",
         },
     ],
     "inputs": [
@@ -42,10 +25,15 @@
             "args": {
                 "key": "example",
                 "description": "Select example:",
-                "default": "rgb_gpio",
+                "default": "annsim24",
                 "options": [
-                    "no_blink",
-                    "rgb_gpio",
+                    "annsim24",
+                    "poll",
+                    "sleep",
+                    "exti",
+                    "simple_poll",
+                    "simple_sleep",
+                    "simple_exti",
                 ]
             }
 		},

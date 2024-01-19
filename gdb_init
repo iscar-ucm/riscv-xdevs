@@ -6,4 +6,4 @@ set print asm-demangle on
 monitor reset halt
 load
 continue
-# quit
+quit

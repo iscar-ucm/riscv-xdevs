@@ -9,20 +9,17 @@ rust-version = "1.59"
 
 [dependencies]
 embedded-hal = "0.2.7"
-hifive1 = { git = "https://github.com/greenlsi/hifive1.git", features = ["board-redv", "v-extern"] }
+hifive1 = { git = "https://github.com/romancardenas/hifive1.git", features = ["board-redv", "v-extern"] }
+
 panic-halt = "0.2.0"
-riscv = "0.10.0"
-riscv-rt = "0.11.0"
-xdevs = { git = "https://github.com/iscar-ucm/xdevs_no_std.rs.git", branch = "main" }
+riscv = "0.11.0"
+riscv-rt = { version = "0.12.0", features = ["single-hart"] }
+xdevs-no-std = "0.1.1"
+portable-atomic = { version = "1.4", default-features = false, features = ["unsafe-assume-single-core"]  }
+semihosting = { version = "0.1", features = ["stdio", "panic-handler"], optional = true }
 
 [features]
-qemu = []
-
-# this lets you use `cargo fix`!
-[[bin]]
-name = "riscv-xdevs"
-test = false
-bench = false
+qemu = ["semihosting"]
 
 [profile.release]
 codegen-units = 1 # better optimizations
